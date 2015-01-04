@@ -1,5 +1,6 @@
 <#
 #activate windows with key
+#see http://blogs.technet.com/b/rgullick/archive/2013/06/13/activating-windows-with-powershell.aspx
 #$computer = gc env:computername
 #$key = "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" #<---put your key here
 #$service = get-wmiObject -query "select * from SoftwareLicensingService" -computername $computer

@@ -24,6 +24,7 @@ would first have to install chocolatey via
 (iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1')))>$null 2>&1
 #>
 
+#figured out starting from here: http://www.isunshare.com/blog/find-change-windows-server-2012-product-key/#opt1
 #uninstall product key, if any exists
 slmgra /upk
 
