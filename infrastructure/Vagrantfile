@@ -1,0 +1,97 @@
+# -*- mode: ruby -*-
+# # vi: set ft=ruby :
+
+require 'fileutils'
+require 'erb'
+require './util'
+
+Vagrant.require_version ">= 1.6.0"
+
+# Defaults for config options defined in CONFIG
+$num_instances = 1
+$vb_gui = true
+$vb_memory = 2048
+$vb_cpus = 2
+
+# Attempt to apply the deprecated environment variable NUM_INSTANCES to
+# $num_instances while allowing config.rb to override it
+if ENV["NUM_INSTANCES"].to_i > 0 && ENV["NUM_INSTANCES"]
+    $num_instances = ENV["NUM_INSTANCES"].to_i
+end
+
+setup_project_directories()
+
+Vagrant.configure("2") do |config|
+    #note, currently this box is not up on vagrant cloud and must be manually imported
+    config.vm.box = "ia/win2012r2"
+
+    config.vm.guest = :windows
+    config.vm.communicator = "winrm"
+    config.winrm.username = "vagrant"
+    config.winrm.password = "vagrant"
+
+=begin
+    config.vm.provider :virtualbox do |v|
+        v.check_guest_additions = true
+        v.functional_vboxsf     = true
+        v.gui = true
+    end
+=end
+
+    (1..$num_instances).each do |i|
+        config.vm.define vm_name = "win2012r2-%02d" % i do |config|
+            config.vm.hostname = vm_name
+
+            setup_machine_directories(vm_name)
+
+            config.vm.provider :virtualbox do |vb|
+                vb.check_guest_additions = true
+                vb.functional_vboxsf     = true
+                vb.gui = $vb_gui
+                vb.memory = $vb_memory
+                vb.cpus = $vb_cpus
+            end
+
+            ip = "172.17.8.#{i+100}"
+            config.vm.network :private_network, ip: ip
+
+            web_port = 9090 + i
+            config.vm.network :forwarded_port, guest: web_port, :host => web_port
+
+            setup_machine_directories(vm_name)
+
+            setup_host_global_shares(config,i)
+            setup_host_local_shares(config,vm_name,i)
+
+            config.vm.provision "shell", path: "./bootstrap.ps1"
+
+=begin
+            #TEMPLATED SCRIPT GENERATION
+            #see http://ruby-log.blogspot.com/2013/03/generating-static-html-using-erb.html
+
+            #write erb templates for configs
+            Dir["#{$global_directories[:templates_config][:host]}/**/*.erb"].each { |f|
+                config_template_name = File.basename(f)
+                config_template = ERB.new(File.read(f))
+
+                machine_dir = $local_directories[:local_config][:host].call(vm_name)
+                File.open(File.join(machine_dir,config_template_name.gsub('.erb','')),'w') do |f1|
+                    f1.puts config_template.result(binding)
+                end
+            }
+
+            #write erb templates for scripts
+            Dir["#{$global_directories[:templates_scripts][:host]}/**/*.erb"].each { |f|
+                config_template_name = File.basename(f)
+                config_template = ERB.new(File.read(f))
+
+                machine_dir = $local_directories[:local_scripts][:host].call(vm_name)
+                File.open(File.join(machine_dir,config_template_name.gsub('.erb','')),'w') do |f1|
+                    f1.puts config_template.result(binding)
+                end
+            }
+=end
+
+        end
+    end
+end
