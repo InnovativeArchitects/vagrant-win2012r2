@@ -3,7 +3,7 @@
 
 require 'fileutils'
 require 'erb'
-require './util'
+require './provisionScripts/shares'
 
 Vagrant.require_version ">= 1.6.0"
 
@@ -30,14 +30,6 @@ Vagrant.configure("2") do |config|
     config.winrm.username = "vagrant"
     config.winrm.password = "vagrant"
 
-=begin
-    config.vm.provider :virtualbox do |v|
-        v.check_guest_additions = true
-        v.functional_vboxsf     = true
-        v.gui = true
-    end
-=end
-
     (1..$num_instances).each do |i|
         config.vm.define vm_name = "win2012r2-%02d" % i do |config|
             config.vm.hostname = vm_name
@@ -63,14 +55,11 @@ Vagrant.configure("2") do |config|
             setup_host_global_shares(config,i)
             setup_host_local_shares(config,vm_name,i)
 
-            config.vm.provision "shell", path: "./bootstrap.ps1"
-
-=begin
             #TEMPLATED SCRIPT GENERATION
             #see http://ruby-log.blogspot.com/2013/03/generating-static-html-using-erb.html
 
             #write erb templates for configs
-            Dir["#{$global_directories[:templates_config][:host]}/**/*.erb"].each { |f|
+            Dir["../global/templates/config/**/*.erb"].each { |f|
                 config_template_name = File.basename(f)
                 config_template = ERB.new(File.read(f))
 
@@ -81,7 +70,7 @@ Vagrant.configure("2") do |config|
             }
 
             #write erb templates for scripts
-            Dir["#{$global_directories[:templates_scripts][:host]}/**/*.erb"].each { |f|
+            Dir["../global/templates/scripts/**/*.erb"].each { |f|
                 config_template_name = File.basename(f)
                 config_template = ERB.new(File.read(f))
 
@@ -90,8 +79,10 @@ Vagrant.configure("2") do |config|
                     f1.puts config_template.result(binding)
                 end
             }
-=end
 
+            config.vm.provision "shell", path: "./provisionScripts/bootstrap.ps1"
+            config.vm.provision "shell", path: "./provisionScripts/installMEAN.ps1"
+            config.vm.provision "shell", path: "./provisionScripts/installApp.ps1"
         end
     end
 end
